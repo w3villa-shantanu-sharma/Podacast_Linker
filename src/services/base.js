@@ -1,7 +1,10 @@
 import axios from "axios";
 
 const getStoredToken = () => localStorage.getItem("token");
+
+// Make sure your API client uses the correct production URL
 const API_URL = import.meta.env.VITE_API_URL;
+console.log('API URL:', API_URL); // Debug log to verify URL
 
 // Create an Axios instance with environment-aware URL
 const api = axios.create({
