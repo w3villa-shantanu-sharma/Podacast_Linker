@@ -7,29 +7,56 @@ export default function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const navigate = useNavigate();
   
   // Fetch notifications on component mount
   useEffect(() => {
     fetchNotifications();
     
-    // Set up polling to check notifications every minute
-    const intervalId = setInterval(fetchNotifications, 60000);
+    // Set up polling to check notifications with error handling
+    const intervalId = setInterval(() => {
+      fetchNotifications(false); // Silent mode for background refresh
+    }, 60000);
+    
     return () => clearInterval(intervalId);
   }, []);
   
-  const fetchNotifications = async () => {
-    try {
-      setLoading(true);
-      const { data } = await api.get('/users/notifications');
+  // Update the fetchNotifications function
+
+const fetchNotifications = async (showLoadingState = true) => {
+  if (showLoadingState) {
+    setLoading(true);
+  }
+  
+  try {
+    // Add timeout to prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const { data } = await api.get('/users/notifications', { 
+      signal: controller.signal 
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (Array.isArray(data)) {
       setNotifications(data);
       setUnreadCount(data.filter(n => !n.seen).length);
-    } catch (err) {
-      console.error('Failed to fetch notifications:', err);
-    } finally {
+      setError(false);
+    } else {
+      console.error('Unexpected response format:', data);
+      setError(true);
+    }
+  } catch (err) {
+    console.error('Failed to fetch notifications:', err);
+    setError(true);
+  } finally {
+    if (showLoadingState) {
       setLoading(false);
     }
-  };
+  }
+};
   
   const handleNotificationClick = async (notification) => {
     // Mark notification as seen
@@ -63,11 +90,33 @@ export default function NotificationBell() {
           )}
         </div>
       </div>
+      
       <div tabIndex={0} className="dropdown-content z-50 menu p-2 shadow bg-base-100 rounded-box w-80 max-h-96 overflow-y-auto">
-        <div className="p-2 font-bold border-b border-base-300">Notifications</div>
+        <div className="p-2 font-bold border-b border-base-300">
+          Notifications
+          <button 
+            className="btn btn-xs btn-ghost float-right" 
+            onClick={(e) => {
+              e.stopPropagation();
+              fetchNotifications();
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        </div>
+        
         {loading ? (
           <div className="flex justify-center p-4">
             <span className="loading loading-spinner loading-sm"></span>
+          </div>
+        ) : error ? (
+          <div className="p-4 text-center text-sm text-base-content/70">
+            <div className="text-error mb-2">Could not load notifications</div>
+            <button className="btn btn-xs btn-outline" onClick={() => fetchNotifications()}>
+              Try again
+            </button>
           </div>
         ) : notifications.length > 0 ? (
           notifications.map(notification => (
@@ -79,6 +128,10 @@ export default function NotificationBell() {
               <div className="font-semibold text-sm">
                 {notification.type === 'PLAN_EXPIRED' && '❗ Plan Expired'}
                 {notification.type === 'PLAN_EXPIRING' && '⚠️ Plan Expiring Soon'}
+                {notification.type === 'SYSTEM' && '📢 System Alert'}
+                {notification.type === 'PAYMENT' && '💰 Payment Update'}
+                {notification.type === 'PODCAST' && '🎙️ Podcast Update'}
+                {notification.type === 'PROFILE' && '👤 Profile Update'}
               </div>
               <div className="text-xs text-base-content/70">{notification.message}</div>
               <div className="text-xs text-base-content/50 mt-1">
