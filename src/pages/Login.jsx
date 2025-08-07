@@ -94,7 +94,9 @@ export default function Login() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL}/users/auth/google`;
+    const googleAuthUrl = `${import.meta.env.VITE_API_URL}/users/auth/google`;
+    console.log('Redirecting to Google auth:', googleAuthUrl);
+    window.location.href = googleAuthUrl;
   };
 
   return (
