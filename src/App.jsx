@@ -1,3 +1,4 @@
+import { Routes, Route } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import Navbar from "./components/Navbar";
 
@@ -18,9 +19,14 @@ import VerifyOTP from "./pages/VerifyOTP";
 import NotFound from "./pages/NotFound"; // <-- Import the new 404 page
 import EditProfile from "./pages/EditProfile";
 
+// Admin Pages
+import AdminDashboard from "./pages/admin/Dashboard";
+import AdminUsers from "./pages/admin/Users";
+import Unauthorized from "./pages/Unauthorized"; // Create this page
+
 // Routing
 import PrivateRoute from "./routes/PrivateRoute";
-import { Routes, Route } from "react-router-dom";
+import AdminRoute from "./routes/AdminRoute";
 
 const App = () => {
   return (
@@ -48,6 +54,27 @@ const App = () => {
         <Route path="/payment" element={<PrivateRoute><Payment /></PrivateRoute>} />
         <Route path="/me" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
         <Route path="/edit-profile" element={<PrivateRoute><EditProfile /></PrivateRoute>} />
+
+        {/* Admin Routes */}
+        <Route 
+          path="/admin" 
+          element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
+          } 
+        />
+        <Route 
+          path="/admin/users" 
+          element={
+            <AdminRoute>
+              <AdminUsers />
+            </AdminRoute>
+          } 
+        />
+        
+        {/* Unauthorized Page */}
+        <Route path="/unauthorized" element={<Unauthorized />} />
         
         {/* --- Fallback Route --- */}
         <Route path="*" element={<NotFound />} />

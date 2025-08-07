@@ -6,37 +6,64 @@ export const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [authChecked, setAuthChecked] = useState(false);
 
+  // This effect runs once when the component mounts
   useEffect(() => {
-    const verifyAuth = async () => {
-      // Only check auth once on initial load
-      if (authChecked) return;
-
+    const checkAuth = async () => {
       try {
         setLoading(true);
-        const response = await api.get("/users/me");
-        setUser(response.data);
-        setIsAuthenticated(true);
-        console.log("Authentication verified successfully");
-      } catch (error) {
-        console.error("Auth verification failed:", error);
-        setIsAuthenticated(false);
-        setUser(null);
-
-        // Only redirect to login if it's a 401 and we're on a protected route
-        if (error.response?.status === 401 && window.location.pathname.startsWith('/dashboard')) {
-          // Let PrivateRoute handle the redirect
+        
+        // Try to get token from localStorage first
+        const token = localStorage.getItem('token');
+        
+        if (token) {
+          // Set token in headers
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          
+          try {
+            // Validate token with server
+            const response = await api.get('/users/me');
+            setUser(response.data);
+            setIsAuthenticated(true);
+            setIsAdmin(response.data.role === 'admin');
+            console.log("User authenticated, admin status:", response.data.role === 'admin');
+            return;
+          } catch (error) {
+            console.log("Stored token invalid, trying cookie-based auth");
+            // Token in localStorage was invalid, 
+            // but might still have valid cookie
+          }
+        }
+        
+        // Try cookie-based auth as fallback
+        try {
+          const response = await api.get('/users/me');
+          if (response.data) {
+            // Cookie auth worked, update localStorage too
+            const token = response.headers.authorization?.split(' ')[1];
+            if (token) localStorage.setItem('token', token);
+            
+            setUser(response.data);
+            setIsAuthenticated(true);
+            setIsAdmin(response.data.role === 'admin');
+            console.log("User authenticated, admin status:", response.data.role === 'admin');
+          }
+        } catch (err) {
+          // Neither localStorage nor cookie auth worked
+          localStorage.removeItem('token');
+          setUser(null);
+          setIsAuthenticated(false);
+          setIsAdmin(false);
         }
       } finally {
         setLoading(false);
-        setAuthChecked(true);
       }
     };
 
-    verifyAuth();
-  }, [authChecked]);
+    checkAuth();
+  }, []);
 
   const logout = async () => {
     try {
@@ -58,8 +85,10 @@ export const AuthProvider = ({ children }) => {
         setUser,
         isAuthenticated,
         setIsAuthenticated,
+        isAdmin,
+        setIsAdmin,
         loading,
-        logout,
+        setLoading
       }}
     >
       {children}

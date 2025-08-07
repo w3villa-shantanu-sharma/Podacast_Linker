@@ -6,11 +6,14 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:4000',
-        changeOrigin: true,
-        secure: false
-      }
+      // Only apply proxy in development
+      ...(process.env.NODE_ENV !== 'production' ? {
+        '/api': {
+          target: 'http://localhost:4000',
+          changeOrigin: true,
+          secure: false
+        }
+      } : {})
     }
   }
 })

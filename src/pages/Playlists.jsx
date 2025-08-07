@@ -49,7 +49,7 @@ export default function Playlists() {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-4">
-            📚 Podcast Playlists
+             Podcast Playlists
           </h1>
           <p className="text-lg md:text-xl text-base-content/70 max-w-2xl mx-auto">
             Curated collections of podcasts for you to explore and enjoy.

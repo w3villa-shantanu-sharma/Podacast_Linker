@@ -3,7 +3,7 @@ import { useAuth } from "../hooks/useAuth";
 import NotificationBell from "./NotificationBell";
 
 export default function Navbar() {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isAdmin, logout } = useAuth(); // Add isAdmin here
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -48,6 +48,14 @@ export default function Navbar() {
               ➕ Create Page
             </Link>
           </li>
+          {/* Add Admin link if user is admin */}
+          {isAdmin && (
+            <li>
+              <Link to="/admin" className="btn btn-ghost">
+                👑 Admin Panel
+              </Link>
+            </li>
+          )}
         </>
       )}
     </>
@@ -81,6 +89,14 @@ export default function Navbar() {
       <li>
         <Link to="/payment">💎 Upgrade Plan</Link>
       </li>
+      {/* Add Admin link in dropdown if user is admin */}
+      {isAdmin && (
+        <li>
+          <Link to="/admin" className="text-primary font-semibold">
+            👑 Admin Panel
+          </Link>
+        </li>
+      )}
       <div className="divider my-2" />
       <li>
         <button onClick={handleLogout} className="text-error">

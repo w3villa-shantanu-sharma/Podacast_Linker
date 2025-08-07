@@ -52,14 +52,23 @@ export default function Login() {
     try {
       const res = await api.post("/users/login", { email, password });
 
-      // Check for successful login with token
-      if (res.data.status === "SUCCESS" || res.data.token) {
+      // Store token regardless of user type
+      if (res.data.token) {
+        localStorage.setItem("token", res.data.token);
         await login(res.data.token);
+
+        // Special handling for admin
+        if (res.data.isAdmin) {
+          console.log("Admin login detected");
+          navigate("/admin");
+          return;
+        }
+
+        // Regular navigation for non-admin users
         navigate(from, { replace: true });
-        return;
       }
 
-      // Handle onboarding steps
+      // Handle onboarding steps (same as before)
       if (res.data.next_action) {
         routeOnboardingStep(res.data.next_action, navigate, {
           email: res.data.email || email,
