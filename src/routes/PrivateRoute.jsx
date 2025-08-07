@@ -1,10 +1,21 @@
 // components/PrivateRoute.jsx
 import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 
 export default function PrivateRoute({ children }) {
   const location = useLocation();
-  const token = localStorage.getItem("token");
+  const { isAuthenticated, loading } = useAuth();
 
-  return token ? children : <Navigate to="/login" state={{ from: location }} />;
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  return isAuthenticated ? children : <Navigate to="/login" state={{ from: location }} replace />;
 }
 

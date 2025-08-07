@@ -1,26 +1,18 @@
 import { useState, useEffect } from "react";
-import {
-  TextInput,
-  Button,
-  Container,
-  Title,
-  Progress,
-  Center,
-} from "@mantine/core";
-import { showNotification } from "@mantine/notifications";
-import api from "../services/base";
 import { useNavigate } from "react-router-dom";
+import api from "../services/base";
 import { routeOnboardingStep } from "../utils/routeOnboardingStep";
 
 const OTP_COOLDOWN_SECONDS = 60;
 
-export default function OtpVerification({ email }) {
+export default function OtpVerification({ email, onVerified }) {
   const navigate = useNavigate();
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [error, setError] = useState('');
 
-  // 🕒 Restore cooldown from localStorage
+  // Restore cooldown from localStorage on component mount
   useEffect(() => {
     const lastSent = parseInt(localStorage.getItem("otp_sent_ts") || "0");
     const elapsed = Math.floor((Date.now() - lastSent) / 1000);
@@ -29,115 +21,115 @@ export default function OtpVerification({ email }) {
     }
   }, []);
 
-  //  Countdown timer
+  // Countdown timer effect
   useEffect(() => {
     if (cooldown <= 0) return;
     const timer = setInterval(() => setCooldown((c) => c - 1), 1000);
     return () => clearInterval(timer);
   }, [cooldown]);
 
-  //  Verify OTP
+  // Handle OTP verification
   const handleVerify = async () => {
     setLoading(true);
+    setError(''); // Clear previous errors
     try {
       const res = await api.post("/users/verify-otp", { email, otp });
-      showNotification({
-        title: "Success",
-        message: "Mobile number verified!",
-        color: "green",
-      });
-
-      // Use next_action from backend to route
-      if (res.data.next_action === "PROFILE_UPDATED") {
-        navigate("/complete-profile", { state: { email } });
+      
+      // Notify parent component or navigate
+      if (onVerified) {
+        onVerified();
       } else {
-        // fallback: use routeOnboardingStep utility if you have it
-        routeOnboardingStep(res.data.next_action, navigate, email);
+        routeOnboardingStep(res.data.next_action, navigate, { 
+          email, 
+          message: "Mobile number verified successfully!" 
+        });
       }
-      // onVerified();
+
     } catch (err) {
-      showNotification({
-        title: "OTP Verification Failed",
-        message: err.response?.data?.message || "Invalid OTP",
-        color: "red",
-      });
+      const errorMessage = err.response?.data?.message || "Invalid or incorrect OTP.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔄 Resend OTP with cooldown
+  // Handle OTP resend
   const handleResend = async () => {
+    setError(''); // Clear previous errors
     try {
       await api.post("/users/send-otp", { email });
-      showNotification({
-        title: "OTP Resent",
-        message: `A new OTP has been sent to ${email}`,
-        color: "blue",
-      });
-      setOtp("");
+      setOtp(""); // Clear OTP input
       localStorage.setItem("otp_sent_ts", Date.now().toString());
       setCooldown(OTP_COOLDOWN_SECONDS);
+      // Optional: show a temporary success message for resend
     } catch (err) {
-      showNotification({
-        title: "Failed to Resend",
-        message: err.response?.data?.message || "Please try again later.",
-        color: "red",
-      });
+      const errorMessage = err.response?.data?.message || "Failed to resend OTP. Please try again later.";
+      setError(errorMessage);
     }
   };
 
-  const progress =
-    ((OTP_COOLDOWN_SECONDS - cooldown) / OTP_COOLDOWN_SECONDS) * 100;
+  // Calculate progress for the cooldown bar
+  const progress = ((OTP_COOLDOWN_SECONDS - cooldown) / OTP_COOLDOWN_SECONDS) * 100;
 
   return (
-    <Container size="sm" py="md">
-      <Title order={3}>Verify Mobile OTP</Title>
+    <div className="card bg-base-100 shadow-xl border border-base-300 w-full max-w-sm mx-auto">
+      <div className="card-body">
+        <h2 className="card-title justify-center text-2xl">Verify Mobile OTP</h2>
+        <p className="text-center text-sm text-base-content/70 mb-4">
+          An OTP has been sent to your mobile number associated with {email}.
+        </p>
+        
+        <div className="form-control w-full space-y-4">
+          <label className="form-control w-full">
+              <div className="label">
+                  <span className="label-text font-semibold">Enter OTP</span>
+              </div>
+              <input
+                  type="text"
+                  placeholder="6-digit code"
+                  className="input input-bordered w-full text-center tracking-widest text-lg"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  required
+              />
+          </label>
+          
+          {error && (
+            <div role="alert" className="alert alert-error text-sm">
+              <span>{error}</span>
+            </div>
+          )}
 
-      <TextInput
-        label="Enter OTP"
-        value={otp}
-        onChange={(e) => setOtp(e.target.value)}
-        mt="md"
-        required
-      />
+          <button
+            className="btn btn-primary w-full"
+            onClick={handleVerify}
+            disabled={loading || !otp || otp.length < 4}
+          >
+            {loading && <span className="loading loading-spinner"></span>}
+            Verify
+          </button>
+          
+          <div className="divider text-xs">OR</div>
 
-      <Button
-        fullWidth
-        mt="md"
-        onClick={handleVerify}
-        loading={loading}
-        disabled={!otp}
-      >
-        Verify
-      </Button>
-
-      <Button
-        fullWidth
-        mt="sm"
-        variant="subtle"
-        onClick={handleResend}
-        disabled={cooldown > 0}
-      >
-        {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend OTP"}
-      </Button>
-
-      {cooldown > 0 && (
-        <>
-          <Progress
-            value={progress}
-            size="sm"
-            color="indigo"
-            striped
-            animate
-            radius="xl"
-            mt="sm"
-          />
-          <Center mt={4} style={{ fontSize: "12px", color: "#666" }}>
-            Wait {cooldown}s before resending
-          </Center>
-        </>
-      )}
-    </Container>
+          <div className="text-center">
+            <button
+              className="btn btn-link no-underline"
+              onClick={handleResend}
+              disabled={cooldown > 0}
+            >
+              {cooldown > 0 ? `Resend OTP in ${cooldown}s` : "Resend OTP"}
+            </button>
+          </div>
+          
+          {cooldown > 0 && (
+              <progress 
+                className="progress progress-primary w-full" 
+                value={progress} 
+                max="100"
+              ></progress>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

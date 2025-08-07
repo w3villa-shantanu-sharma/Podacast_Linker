@@ -9,43 +9,43 @@ export const useAuth = () => {
     throw new Error("useAuth must be used within an AuthProvider");
   }
 
-  const login = async (newToken) => {
-    if (!newToken) {
-      throw new Error("Login function called without a token.");
-    }
-
+  const login = async (tokenFromResponse = null) => {
     try {
-      // 1. Set token in localStorage
-      localStorage.setItem("token", newToken);
-
-      // 2. Fetch user data with the NEW token
-      const response = await api.get("/users/me", {
-        headers: { Authorization: `Bearer ${newToken}` },
-      });
-
-      // 3. Update context state
+      // If we have a token from login response, we still need to fetch user data
+      const response = await api.get("/users/me");
       context.setUser(response.data);
-      context.setToken(newToken);
       context.setIsAuthenticated(true);
-
       return response.data;
     } catch (error) {
-      console.error("Login failed:", error);
-      // Clear all auth state on failure
-      localStorage.removeItem("token");
-      context.setToken(null);
+      console.error("Login verification failed:", error);
+      context.setIsAuthenticated(false);
+      context.setUser(null);
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await api.post("/users/logout");
+    } catch (error) {
+      console.error("Server logout failed:", error);
+    } finally {
       context.setUser(null);
       context.setIsAuthenticated(false);
-      throw error;
+      
+      // Clear localStorage items
+      localStorage.removeItem("onboarding_email");
+      localStorage.removeItem("onboarding_step");
+      localStorage.removeItem("otp_sent_ts");
+      localStorage.removeItem("resend_email_ts");
     }
   };
 
   return {
     user: context.user,
-    token: context.token,
     isAuthenticated: context.isAuthenticated,
     loading: context.loading,
     login,
-    logout: context.logout,
+    logout,
   };
 };

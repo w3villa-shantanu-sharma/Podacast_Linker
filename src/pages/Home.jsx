@@ -1,17 +1,25 @@
-import {
-  Container, Title, Text, Card, Group, Anchor, Image,
-  Loader, Badge, Grid, Button, Center, TextInput
-} from "@mantine/core";
-import { IconClock, IconSearch } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useNavigate, Link } from "react-router-dom";
+import { toast } from 'react-toastify';
 import api from "../services/base";
+
+// Consistent icon components
+const SearchIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+);
+
+const ClockIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
 
 export default function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
-
   const [episodes, setEpisodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -21,9 +29,12 @@ export default function Home() {
     setLoading(true);
     try {
       const res = await api.get(`/podcast/free`, { params: { q } });
-      setEpisodes(res.data || []);
+      // const validEpisodes = (res.data || []).filter(ep => ep.listenNotes || ep.link);
+      const validEpisodes = (res.data || []);
+      setEpisodes(validEpisodes);
     } catch (err) {
       console.error("Failed to load episodes:", err);
+      toast.error("Failed to load podcasts. Please try again.");
       setEpisodes([]);
     } finally {
       setLoading(false);
@@ -34,102 +45,155 @@ export default function Home() {
     fetchEpisodes();
   }, []);
 
-  const handleSearch = () => {
-    setQuery(search.trim());
-    fetchEpisodes(search.trim());
+  const handleSearch = (e) => {
+    e.preventDefault();
+    const searchTerm = search.trim();
+    if (searchTerm) {
+      setQuery(searchTerm);
+      fetchEpisodes(searchTerm);
+    }
   };
 
-  const handleGetStarted = () => {
-    navigate(user ? "/create" : "/register");
+  const handleListenClick = async (podcast) => {
+    if (!user) {
+      navigate('/register', {
+        state: { message: 'Please register or login to listen to podcasts' }
+      });
+      return;
+    }
+    
+    try {
+      api.post(`/podcast/track-listen/${podcast.id}`);
+      const url = podcast.listenNotes || podcast.link;
+      if (url) {
+        window.open(url, "_blank");
+        toast.success("Opening podcast in a new tab!");
+      } else {
+        toast.error("Sorry, no listening link available for this podcast.");
+      }
+    } catch (err) {
+      console.error("Failed to track click:", err);
+      toast.error("Something went wrong. Please try again.");
+    }
   };
 
   return (
-    <Container size="lg" py="xl">
-      <Title align="center" order={2}>
-        🎙️ <span style={{ color: "#3b82f6" }}>Podcast Link Hub</span>
-      </Title>
+    <div className="min-h-screen bg-gradient-to-br from-base-200 to-base-300">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Hero Section */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-4">
+            🎙️ Podcast Link Hub
+          </h1>
+          <p className="text-lg md:text-xl text-base-content/70 max-w-2xl mx-auto">
+            Discover trending podcasts or search your favorites!
+          </p>
+        </div>
 
-      <Text align="center" size="lg" color="dimmed" mt="xs" mb="lg">
-        Discover trending podcasts or search your favorites!
-      </Text>
+        {/* Search Section */}
+        <div className="max-w-2xl mx-auto mb-12">
+          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
+            <div className="form-control flex-1">
+              <label className="input input-bordered input-lg flex items-center gap-2 bg-base-100 shadow-lg">
+                <SearchIcon />
+                <input
+                  type="text"
+                  className="grow text-base"
+                  placeholder="Search podcasts..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </label>
+            </div>
+            <button type="submit" className="btn btn-primary btn-lg px-8 shadow-lg">
+              Search
+            </button>
+          </form>
+        </div>
 
-      <Group position="center" mb="md">
-        <TextInput
-          placeholder="Search podcasts"
-          icon={<IconSearch size={16} />}
-          value={search}
-          onChange={(e) => setSearch(e.currentTarget.value)}
-        />
-        <Button onClick={handleSearch}>Search</Button>
-      </Group>
+        {/* Action Buttons */}
+        <div className="flex flex-wrap justify-center gap-4 mb-12">
+          <Link to="/playlists" className="btn btn-outline btn-lg">
+            🎧 Explore Playlists
+          </Link>
+          {user?.username && (
+            <Link to={`/u/${user.username}`} className="btn btn-ghost btn-lg">
+              👉 View Your Profile
+            </Link>
+          )}
+        </div>
 
-      <Group position="center" mt="sm" mb="xl">
-        <Button component={Link} to="/playlists" variant="outline">
-          🎧 Explore Playlists
-        </Button>
-      </Group>
+        {/* Results Section */}
+        <div className="mb-8">
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">
+            {query ? `🔎 Results for "${query}"` : '🌟 Featured Podcasts'}
+          </h2>
 
-      {user?.username && (
-        <Group position="center" mb="xl">
-          <Anchor component={Link} to={`/u/${user.username}`}>
-            👉 View Your Public Profile
-          </Anchor>
-        </Group>
-      )}
-
-      <Title order={4} mt="xl" mb="md">
-        {query ? `🔎 Results for "${query}"` : '🌟 Random Podcasts'}
-      </Title>
-
-      {loading ? (
-        <Center my="lg">
-          <Loader size="md" />
-        </Center>
-      ) : episodes.length === 0 ? (
-        <Text align="center" color="dimmed">No episodes found.</Text>
-      ) : (
-        <Grid gutter="md">
-          {episodes.map((ep, i) => (
-            <Grid.Col span={{ base: 12, sm: 6, md: 4 }} key={i}>
-              <Card shadow="sm" radius="md" withBorder p="md" style={{ height: "100%" }}>
-                <Card.Section>
-                  <Image
-                    src={ep.thumbnail || ep.image}
-                    alt={ep.title}
-                    height={180}
-                    fit="cover"
-                    radius="md"
-                  />
-                </Card.Section>
-
-                <Title order={5} mt="sm" lineClamp={2}>{ep.title}</Title>
-
-                <Text size="sm" color="dimmed" mt="xs" lineClamp={3}>
-                  {ep.description?.replace(/<[^>]+>/g, "") || "No description available."}
-                </Text>
-
-                <Group justify="space-between" mt="md">
-                  <Anchor
-                    href={ep.listenNotes || ep.link}
-                    target="_blank"
-                    size="sm"
-                    underline="hover"
-                  >
-                    🔗 Listen
-                  </Anchor>
-                  <Badge
-                    leftSection={<IconClock size={12} />}
-                    variant="light"
-                    color="blue"
-                  >
-                    {Math.floor((ep.audio_length_sec || 1800) / 60)} min
-                  </Badge>
-                </Group>
-              </Card>
-            </Grid.Col>
-          ))}
-        </Grid>
-      )}
-    </Container>
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <div className="flex flex-col items-center gap-4">
+                <span className="loading loading-spinner loading-lg text-primary"></span>
+                <p className="text-base-content/70">Loading amazing podcasts...</p>
+              </div>
+            </div>
+          ) : episodes.length === 0 ? (
+            <div className="text-center py-20">
+              <div className="max-w-md mx-auto">
+                <div className="text-6xl mb-4">🎭</div>
+                <h3 className="text-xl font-bold mb-2">No podcasts found</h3>
+                <p className="text-base-content/60 mb-6">
+                  Try adjusting your search terms or explore our curated playlists.
+                </p>
+                <Link to="/playlists" className="btn btn-primary">
+                  Browse Playlists
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+              {episodes.map((ep, i) => (
+                <div key={i} className="card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                  <figure className="relative overflow-hidden">
+                    <img
+                      src={ep.thumbnail || ep.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(ep.title)}&background=random`}
+                      alt={ep.title}
+                      className="w-full h-48 object-cover transition-transform duration-300 hover:scale-105"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(ep.title)}&background=random`;
+                      }}
+                    />
+                    <div className="absolute top-2 right-2">
+                      <div className="badge badge-primary gap-1">
+                        <ClockIcon />
+                        {Math.floor((ep.audio_length_sec || 1800) / 60)}m
+                      </div>
+                    </div>
+                  </figure>
+                  
+                  <div className="card-body p-4">
+                    <h3 className="card-title text-sm font-bold line-clamp-2 min-h-[2.5rem]">
+                      {ep.title}
+                    </h3>
+                    <p className="text-xs text-base-content/70 line-clamp-3 min-h-[3rem]">
+                      {ep.description?.replace(/<[^>]+>/g, "") || "No description available."}
+                    </p>
+                    
+                    <div className="card-actions justify-center mt-4">
+                      <button 
+                        onClick={() => handleListenClick(ep)} 
+                        className="btn btn-primary btn-sm w-full"
+                      >
+                        🔗 Listen Now
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

@@ -1,5 +1,14 @@
-import { Button } from '@mantine/core';
+// src/components/PlanButton.jsx
 
-export default function PlanButton({ onUpgrade }) {
-  return <Button onClick={onUpgrade}>Upgrade to Premium</Button>;
+export default function PlanButton({ onUpgrade, loading }) {
+  return (
+    <button
+      className="btn btn-primary w-full"
+      onClick={onUpgrade}
+      disabled={loading}
+    >
+      {loading && <span className="loading loading-spinner"></span>}
+      Upgrade to Premium
+    </button>
+  );
 }

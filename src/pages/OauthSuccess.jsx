@@ -1,4 +1,3 @@
-// oauth-success.jsx or similar
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -7,59 +6,50 @@ import { routeOnboardingStep } from '../../utils/RouteOnboardingStep';
 const OAuthSuccess = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("Authenticating...");
 
   useEffect(() => {
     const handleOAuthSuccess = async () => {
       try {
         const params = new URLSearchParams(window.location.search);
-        const token = params.get('token');
         const nextAction = params.get('next_action');
         const email = params.get('email');
 
-        if (token) {
-          // Store token and update auth state
-          localStorage.setItem("token", token);
-          await login(token); // This will fetch user data
+        setStatus("Finalizing your login...");
+          
+        // No need to store token in localStorage - it's in cookies
+        // Just call login to update auth context state
+        await login();
 
-          // Handle next action for incomplete profiles
-          if (nextAction && nextAction !== 'null') {
-            localStorage.setItem("onboarding_step", nextAction);
-            if (email) localStorage.setItem("onboarding_email", email);
-            routeOnboardingStep(nextAction, navigate, email);
-          } else {
-            // Profile is complete, go to dashboard
-            navigate('/dashboard');
-          }
+        // Handle next action for incomplete profiles
+        if (nextAction && nextAction !== 'null') {
+          routeOnboardingStep(nextAction, navigate, { email });
         } else {
-          // No token, redirect to login
-          navigate('/login');
+          // Profile is complete, go to dashboard
+          navigate('/dashboard', { replace: true });
         }
       } catch (error) {
         console.error('OAuth success error:', error);
-        navigate('/login');
-      } finally {
-        setLoading(false);
+        setStatus("An error occurred. Redirecting...");
+        navigate('/login', { state: { error: 'An unexpected error occurred during login.' } });
       }
     };
 
     handleOAuthSuccess();
   }, [login, navigate]);
 
-  if (loading) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh' 
-      }}>
-        Redirecting...
+  return (
+    <div className="min-h-screen hero bg-base-200">
+      <div className="hero-content text-center">
+        <div className="max-w-md">
+          <div className="flex flex-col items-center gap-4">
+            <h1 className="text-3xl font-bold">{status}</h1>
+            <div className="loading loading-spinner loading-lg"></div>
+          </div>
+        </div>
       </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 };
 
 export default OAuthSuccess;

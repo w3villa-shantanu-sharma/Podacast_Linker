@@ -1,169 +1,115 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Container,
-  Title,
-  Text,
-  Group,
-  Badge,
-  Stack,
-  Button,
-  Card,
-  SimpleGrid,
-  List,
-  ThemeIcon,
-  Divider,
-  Modal,
-  useMantineTheme,
-} from "@mantine/core";
-import { showNotification } from "@mantine/notifications";
-import { IconCheck, IconCrown, IconClockHour6, IconClock12 } from "@tabler/icons-react";
 import { useAuth } from "../hooks/useAuth";
 import api from "../services/base";
 
-// Plan details based on backend config
+// --- Helper Icon Components ---
+const IconCheck = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+);
+const IconCrown = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/></svg>
+);
+
+// --- Plan Configuration ---
 const PLANS = [
-  {
-    id: "FREE",
-    name: "Free",
-    price: 0,
-    duration: "Forever",
-    icon: <IconCheck size={18} />,
-    color: "gray",
-    features: [
-      "Basic podcast streaming",
-      "Limited episode access",
-      "Standard audio quality",
-    ],
-    popular: false,
-    description: "Get started with basic podcasting features",
-    buttonVariant: "outline",
+  { 
+    id: "FREE", 
+    name: "Free", 
+    price: 0, 
+    duration: "Forever", 
+    features: ["Basic podcast streaming", "Limited episode access", "Standard audio quality"], 
+    youtubeLinks: 0,
+    popular: false, 
+    description: "Get started with the basics", 
+    buttonStyle: "btn-outline" 
   },
-  {
-    id: "SILVER",
-    name: "Silver",
-    price: 50,
-    duration: "1 Hour",
-    icon: <IconCheck size={18} />,
-    color: "silver",
-    features: [
-      "Everything in Free",
-      "No ads on episodes",
-      "HD audio quality",
-      "Limited offline downloads",
-    ],
-    popular: false,
-    description: "Upgrade your podcasting experience",
-    buttonVariant: "light",
+  { 
+    id: "SILVER", 
+    name: "Silver", 
+    price: 50, 
+    duration: "1 Hour", 
+    features: ["Everything in Free", "No ads on episodes", "HD audio quality", "5 YouTube podcast links"], 
+    youtubeLinks: 5,
+    popular: false, 
+    description: "A serious upgrade for listeners", 
+    buttonStyle: "btn-secondary" 
   },
-  {
-    id: "GOLD",
-    name: "Gold",
-    price: 100,
-    duration: "6 Hours",
-    icon: <IconClockHour6 size={18} />,
-    color: "yellow",
-    features: [
-      "Everything in Silver",
-      "Unlimited offline downloads",
-      "Exclusive content",
-      "Priority access to new features",
-    ],
-    popular: true,
-    description: "Best value for podcast enthusiasts",
-    buttonVariant: "filled",
+  { 
+    id: "GOLD", 
+    name: "Gold", 
+    price: 100, 
+    duration: "6 Hours", 
+    features: ["Everything in Silver", "Unlimited offline downloads", "50 YouTube podcast links", "Priority access"], 
+    youtubeLinks: 50,
+    popular: true, 
+    description: "Best value for enthusiasts", 
+    buttonStyle: "btn-primary" 
   },
-  {
-    id: "PREMIUM",
-    name: "Premium",
-    price: 150,
-    duration: "12 Hours",
-    icon: <IconClock12 size={18} />,
-    color: "violet",
-    features: [
-      "Everything in Gold",
-      "Early access to episodes",
-      "Studio quality audio",
-      "Personalized recommendations",
-      "VIP customer support",
-    ],
-    popular: false,
-    description: "Ultimate podcasting experience",
-    buttonVariant: "gradient",
-    gradient: { from: "indigo", to: "cyan" },
+  { 
+    id: "PREMIUM", 
+    name: "Premium", 
+    price: 150, 
+    duration: "12 Hours", 
+    features: ["Everything in Gold", "100 YouTube podcast links", "Studio quality audio", "VIP support"], 
+    youtubeLinks: 100,
+    popular: false, 
+    description: "The ultimate experience", 
+    buttonStyle: "btn-accent" 
   },
 ];
 
 export default function Payment() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const theme = useMantineTheme();
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [error, setError] = useState('');
 
-  // Handle plan selection and payment initialization
+  // Handle plan selection to open the confirmation modal
   const handleSelectPlan = (plan) => {
-    setSelectedPlan(plan);
-    
     if (plan.id === "FREE") {
-      // Handle free plan selection
-      showNotification({
-        title: "Free Plan Selected",
-        message: "You're already on the free plan!",
-        color: "green",
-      });
+      // Handle free plan (can add a toast/alert here if needed)
       return;
     }
-    
-    setConfirmModalOpen(true);
+    setSelectedPlan(plan);
+    // Use DaisyUI method to open a modal
+    const modal = document.getElementById('payment_confirm_modal');
+    if (modal) {
+      modal.showModal();
+    }
   };
 
   // Process payment through Razorpay
   const handleProceedPayment = async () => {
     if (!selectedPlan || selectedPlan.id === "FREE") return;
     
+    setLoading(true);
+    setError('');
+
     try {
-      setLoading(true);
-      const response = await api.post("/payment/create-order", {
-        plan: selectedPlan.id,
-      });
-      
+      const response = await api.post("/payment/create-order", { plan: selectedPlan.id });
       const { order } = response.data;
       
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: order.amount,
         currency: order.currency,
-        name: "Podcast Hub",
-        description: `${selectedPlan.name} Plan Subscription`,
+        name: "Podcast Hub Subscription",
+        description: `${selectedPlan.name} Plan`,
         order_id: order.id,
         handler: async function (response) {
           try {
-            // FIXED: Removed duplicate '/api' prefix
             await api.post("/payment/verify", {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_order_id: response.razorpay_order_id,
               razorpay_signature: response.razorpay_signature,
               plan: selectedPlan.id,
             });
-            
-            showNotification({
-              title: "Payment Successful!",
-              message: `Your ${selectedPlan.name} plan is now active`,
-              color: "green",
-            });
-            
-            // Redirect to dashboard after successful payment
-            setTimeout(() => navigate("/dashboard"), 2000);
+            navigate("/dashboard", { state: { message: `Payment Successful! Your ${selectedPlan.name} plan is now active.` } });
           } catch (err) {
             console.error("Payment verification error:", err);
-            showNotification({
-
-              title: "Payment Verification Failed",
-              message: "Please contact support if your payment was deducted",
-              color: "red",
-            });
+            setError("Payment verification failed. Please contact support if your payment was deducted.");
           }
         },
         prefill: {
@@ -172,7 +118,7 @@ export default function Payment() {
           contact: user?.phone || "",
         },
         theme: {
-          color: "#3399cc",
+          color: "#3b82f6", // Blue color for Razorpay modal
         },
       };
       
@@ -181,162 +127,107 @@ export default function Payment() {
       
     } catch (error) {
       console.error("Payment initialization error:", error);
-      
-      // Enhanced error messaging
-      let errorMessage = "Could not process payment";
-      if (error.response?.data?.error === 'API_AUTH_ERROR') {
-        errorMessage = "Payment service is currently unavailable. Please try again later or contact support.";
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      }
-      
-      showNotification({
-        title: "Payment Setup Failed",
-        message: errorMessage,
-        color: "red",
-      });
+      const errorMessage = error.response?.data?.message || "Could not initiate payment. Please try again.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
-      setConfirmModalOpen(false);
+      const modal = document.getElementById('payment_confirm_modal');
+      if (modal) {
+        modal.close();
+      }
     }
   };
 
   return (
-    <Container size="xl" py="xl">
-      {/* Header */}
-      <Stack spacing="xs" align="center" mb="xl">
-        <Badge variant="filled" size="lg" color="blue" radius="sm">
-          Pricing Plans
-        </Badge>
-        <Title order={1} align="center" mt="md">
-          Choose the Perfect Plan for Your Podcasting Needs
-        </Title>
-        <Text color="dimmed" align="center" maw={600} mx="auto" size="lg" mt="xs">
-          Unlock premium features to enhance your podcast experience with our flexible pricing options.
-        </Text>
-      </Stack>
+    <div className="container mx-auto px-4 py-12">
+      {/* --- Header --- */}
+      <div className="text-center max-w-2xl mx-auto mb-16">
+        <div className="badge badge-primary badge-lg mb-4">Pricing Plans</div>
+        <h1 className="text-4xl md:text-5xl font-bold">
+          Choose Your Perfect Plan
+        </h1>
+        <p className="text-lg text-base-content/70 mt-4">
+          Unlock premium features to enhance your podcast experience with our flexible options.
+        </p>
+      </div>
 
-      {/* Plans Grid */}
-      <SimpleGrid
-        cols={4}
-        spacing="lg"
-        breakpoints={[
-          { maxWidth: 'md', cols: 2 },
-          { maxWidth: 'xs', cols: 1 },
-        ]}
-        mt={50}
-      >
+      {/* --- Plans Grid --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         {PLANS.map((plan) => (
-          <Card
-            key={plan.id}
-            shadow="sm"
-            padding="lg"
-            radius="md"
-            withBorder
-            style={{
-              transform: plan.popular ? 'scale(1.05)' : 'none',
-              border: plan.popular ? `2px solid ${theme.colors[plan.color][5]}` : undefined,
-            }}
+          <div 
+            key={plan.id} 
+            className={`card bg-base-100 shadow-xl border-2 ${plan.popular ? 'border-primary' : 'border-base-300'}`}
           >
             {plan.popular && (
-              <Badge
-                color={plan.color}
-                variant="filled"
-                style={{
-                  position: 'absolute',
-                  top: -10,
-                  right: -10,
-                }}
-              >
-                Most Popular
-              </Badge>
+              <div className="badge badge-primary absolute -top-3 -right-3">Most Popular</div>
             )}
-            
-            <Stack align="center" spacing="xs">
-              <ThemeIcon size={56} radius="md" color={plan.color}>
-                {plan.id === "PREMIUM" ? <IconCrown size={30} /> : plan.icon}
-              </ThemeIcon>
-              <Title order={3}>{plan.name}</Title>
-              <Text size="sm" color="dimmed" align="center">
-                {plan.description}
-              </Text>
-            </Stack>
+            <div className="card-body items-center text-center p-6">
+              <div className={`rounded-full p-4 bg-${plan.buttonStyle.replace('btn-','')}/10 text-${plan.buttonStyle.replace('btn-','')}`}>
+                {plan.id === "PREMIUM" ? <IconCrown /> : <IconCheck />}
+              </div>
+              <h2 className="card-title text-2xl">{plan.name}</h2>
+              <p className="text-base-content/70">{plan.description}</p>
+              
+              <div className="my-4">
+                <span className="text-4xl font-extrabold">₹{plan.price}</span>
+                <span className="text-base-content/60">/ {plan.duration}</span>
+              </div>
+              
+              <ul className="space-y-2 text-left mb-6">
+                {plan.features.map((feature, index) => (
+                  <li key={index} className="flex items-center gap-3">
+                    <span className="inline-block p-1 rounded-full bg-green-500/20 text-green-500"><IconCheck /></span>
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
 
-            <Group position="center" mt="md" mb="xs">
-              <Text weight={700} size="xl">
-                ₹{plan.price}
-              </Text>
-              <Text size="sm" color="dimmed">
-                / {plan.duration}
-              </Text>
-            </Group>
-
-            <Divider my="md" />
-
-            <List spacing="sm" size="sm" mb="md" center>
-              {plan.features.map((feature, index) => (
-                <List.Item
-                  key={index}
-                  icon={
-                    <ThemeIcon color={plan.color} size={20} radius="xl">
-                      <IconCheck size={12} />
-                    </ThemeIcon>
-                  }
+              <div className="card-actions w-full mt-auto">
+                <button
+                  className={`btn ${plan.buttonStyle} w-full`}
+                  onClick={() => handleSelectPlan(plan)}
+                  disabled={user?.plan === plan.id}
                 >
-                  {feature}
-                </List.Item>
-              ))}
-            </List>
-
-            <Button
-              variant={plan.buttonVariant}
-              color={plan.color}
-              fullWidth
-              gradient={plan.gradient}
-              onClick={() => handleSelectPlan(plan)}
-              disabled={user?.plan === plan.id}
-            >
-              {user?.plan === plan.id ? "Current Plan" : "Select Plan"}
-            </Button>
-          </Card>
+                  {user?.plan === plan.id ? "Current Plan" : "Select Plan"}
+                </button>
+              </div>
+            </div>
+          </div>
         ))}
-      </SimpleGrid>
+      </div>
 
-      {/* Payment Confirmation Modal */}
-      <Modal
-        opened={confirmModalOpen}
-        onClose={() => setConfirmModalOpen(false)}
-        title={`Confirm ${selectedPlan?.name} Plan`}
-        centered
-      >
-        <Stack spacing="md">
-          <Text>You're about to purchase the {selectedPlan?.name} plan for ₹{selectedPlan?.price}.</Text>
-          <Text weight={500}>This plan includes:</Text>
+      {/* --- Payment Confirmation Modal --- */}
+      <dialog id="payment_confirm_modal" className="modal">
+        <div className="modal-box">
+          <h3 className="font-bold text-lg">Confirm {selectedPlan?.name} Plan</h3>
+          <p className="py-4">You're about to purchase the {selectedPlan?.name} plan for ₹{selectedPlan?.price}.</p>
           
-          <List size="sm">
+          <ul className="space-y-2 text-sm mb-6">
             {selectedPlan?.features.map((feature, idx) => (
-              <List.Item key={idx} icon={<ThemeIcon color={selectedPlan.color} size={20} radius="xl"><IconCheck size={12} /></ThemeIcon>}>
-                {feature}
-              </List.Item>
+              <li key={idx} className="flex items-center gap-2">
+                <span className="inline-block p-1 rounded-full bg-green-500/20 text-green-500"><IconCheck /></span>
+                <span>{feature}</span>
+              </li>
             ))}
-          </List>
+          </ul>
           
-          <Group position="apart" mt="md">
-            <Button variant="light" onClick={() => setConfirmModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              variant={selectedPlan?.buttonVariant} 
-              color={selectedPlan?.color} 
-              gradient={selectedPlan?.gradient}
+          {error && <div role="alert" className="alert alert-error text-sm mb-4"><span>{error}</span></div>}
+
+          <div className="modal-action">
+            <form method="dialog">
+              <button className="btn btn-ghost">Cancel</button>
+            </form>
+            <button
+              className={`btn ${selectedPlan?.buttonStyle}`}
               onClick={handleProceedPayment}
-              loading={loading}
+              disabled={loading}
             >
+              {loading && <span className="loading loading-spinner"></span>}
               Proceed to Payment
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-    </Container>
+            </button>
+          </div>
+        </div>
+      </dialog>
+    </div>
   );
 }

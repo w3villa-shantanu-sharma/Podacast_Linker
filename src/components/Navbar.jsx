@@ -1,74 +1,174 @@
-// src/components/Navbar.jsx
-import { Container, Group, Button, Text, Box, Menu, Avatar } from '@mantine/core';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import NotificationBell from "./NotificationBell";
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (err) {
+      console.error("Logout failed:", err);
+    } finally {
+      navigate("/login");
+    }
   };
 
+  const avatarImage =
+    user?.profile_picture ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      user?.name || user?.email || "User"
+    )}&background=random`;
+
+  const avatarInitial = user?.name?.[0] || user?.email?.[0] || "U";
+
+  const menuLinks = (
+    <>
+      <li>
+        <Link to="/" className="btn btn-ghost">
+          🏠 Home
+        </Link>
+      </li>
+      <li>
+        <Link to="/playlists" className="btn btn-ghost">
+          🎧 Playlists
+        </Link>
+      </li>
+      {isAuthenticated && (
+        <>
+          <li>
+            <Link to="/dashboard" className="btn btn-ghost">
+              📊 Dashboard
+            </Link>
+          </li>
+          <li>
+            <Link to="/create" className="btn btn-ghost">
+              ➕ Create Page
+            </Link>
+          </li>
+        </>
+      )}
+    </>
+  );
+
+  const userMenu = (
+    <ul
+      tabIndex={0}
+      className="menu dropdown-content mt-3 p-3 shadow-xl bg-base-100 rounded-box w-64 border border-base-300/50 z-50"
+    >
+      <li className="menu-title">
+        <div className="flex items-center gap-3">
+          <div className="avatar">
+            <div className="w-8 rounded-full">
+              <img src={avatarImage} alt="User" />
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-bold">{user?.name || user?.username}</p>
+            <p className="text-xs text-base-content/60">{user?.email}</p>
+          </div>
+        </div>
+      </li>
+      <div className="divider my-2" />
+      <li>
+        <Link to="/me">👤 My Profile</Link>
+      </li>
+      <li>
+        <Link to="/dashboard">📊 Dashboard</Link>
+      </li>
+      <li>
+        <Link to="/payment">💎 Upgrade Plan</Link>
+      </li>
+      <div className="divider my-2" />
+      <li>
+        <button onClick={handleLogout} className="text-error">
+          🚪 Logout
+        </button>
+      </li>
+    </ul>
+  );
+
   return (
-    <Box bg="dark" px="md" py="sm">
-      <Container size="lg" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text size="xl" fw={700} color="white" component={Link} to="/" style={{ textDecoration: 'none' }}>
-          🎙️ PodcastHub
-        </Text>
+    <div className="navbar bg-base-100/90 backdrop-blur-lg shadow-md sticky top-0 z-50 border-b border-base-300">
+     <div className="w-full max-w-screen-xl mx-auto px-4 flex justify-between items-center">
 
-        <Group spacing="md">
-          <Link to="/" style={{ color: 'white', textDecoration: 'none' }}>Home</Link>
-          {isAuthenticated && (
-            <>
-              <Link to="/dashboard" style={{ color: 'white', textDecoration: 'none' }}>Dashboard</Link>
-              <Link to="/create" style={{ color: 'white', textDecoration: 'none' }}>Create</Link>
-            </>
-          )}
-        </Group>
+        {/* Start */}
+        <div className="navbar-start">
+          {/* Mobile Menu */}
+          <div className="dropdown lg:hidden">
+            <div tabIndex={0} className="btn btn-ghost btn-circle">
+              <div className="avatar">
+                <div className="w-8 h-8 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+                  <img
+                    src={avatarImage}
+                    alt="Avatar"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = `https://ui-avatars.com/api/?name=${avatarInitial}&background=random`;
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
 
-        <Group>
+            <ul className="menu menu-sm dropdown-content mt-3 p-2 bg-base-100 rounded-box w-64 border border-base-300">
+              <li className="menu-title">
+                <span>Navigation</span>
+              </li>
+              <div className="divider" />
+              {menuLinks}
+            </ul>
+          </div>
+
+          {/* Logo */}
+          <Link to="/" className="btn btn-ghost normal-case text-xl font-bold flex items-center gap-2">
+
+            <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
+              🎙️ PodcastHub
+            </span>
+          </Link>
+        </div>
+
+        {/* Center */}
+        <div className="navbar-center hidden lg:flex">
+          <ul className="menu menu-horizontal gap-1">{menuLinks}</ul>
+        </div>
+
+        {/* End */}
+        <div className="navbar-end flex items-center space-x-3">
           {isAuthenticated && user ? (
-            <Menu position="bottom-end" shadow="md">
-              <Menu.Target>
-                <Button variant="subtle">
-                  {user.profile_picture ? (
-                    <Avatar 
-                      src={user.profile_picture} 
-                      radius="xl" 
-                      size="sm" 
-                      mr={8}
+            <>
+              <NotificationBell />
+              <div className="dropdown dropdown-end">
+                <div tabIndex={0} className="btn btn-ghost btn-circle avatar">
+                  <div className="w-10 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+                    <img
+                      src={avatarImage}
+                      alt="Avatar"
                       onError={(e) => {
-                        console.error("Navbar avatar error:", e.target.src);
-                        e.target.onerror = null; // Prevent infinite loop
-                        e.target.src = ""; // Remove src to fall back to text avatar
+                        e.target.onerror = null;
+                        e.target.src = `https://ui-avatars.com/api/?name=${avatarInitial}&background=random`;
                       }}
                     />
-                  ) : (
-                    <Avatar radius="xl" size="sm" mr={8}>
-                      {user.name?.charAt(0) || user.email?.charAt(0) || "U"}
-                    </Avatar>
-                  )}
-                  {user.name || user.username}
-                </Button>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item component={Link} to="/dashboard">Dashboard</Menu.Item>
-                <Menu.Item component={Link} to="/me">Profile</Menu.Item>
-                <Menu.Divider />
-                <Menu.Item color="red" onClick={handleLogout}>Logout</Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          ) : (
-            <>
-              <Button variant="subtle" color="gray" component={Link} to="/login">Login</Button>
-              <Button variant="filled" component={Link} to="/register">Register</Button>
+                  </div>
+                </div>
+                {userMenu}
+              </div>
             </>
+          ) : (
+            <div className="flex gap-2">
+              <Link to="/login" className="btn btn-ghost">
+                Login
+              </Link>
+              <Link to="/register" className="btn btn-primary">
+                Register
+              </Link>
+            </div>
           )}
-        </Group>
-      </Container>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 }

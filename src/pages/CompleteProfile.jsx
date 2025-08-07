@@ -1,24 +1,24 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import {
-  Container,
-  Title,
-  TextInput,
-  PasswordInput,
-  Button,
-  Notification,
-  Group,
-  Avatar,
-  Text,
-  FileInput,
-  Checkbox,
-} from "@mantine/core";
-import { showNotification } from "@mantine/notifications";
+import { useLocation, useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 import api from "../services/base";
 import OnboardingProgress from "../components/OnboardingProgress";
-import { useAuth } from "../hooks/useAuth";
 
 export default function CompleteProfile() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user, login } = useAuth();
+  
+  // Get email from multiple sources with better error handling
+  const emailFromState = location.state?.email;
+  const emailFromStorage = localStorage.getItem("onboarding_email");
+  const emailFromUser = user?.email;
+  
+  const email = emailFromState || emailFromUser || emailFromStorage;
+
+  // Remove the authentication check that redirects to login
+  // This is causing issues when users need to complete their profile
+  
   const [username, setUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [wantToChangePassword, setWantToChangePassword] = useState(false);
@@ -26,166 +26,160 @@ export default function CompleteProfile() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [file, setFile] = useState(null);
-  
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { user, isAuthenticated, login } = useAuth();
-  const token = localStorage.getItem("token");
+  const [previewUrl, setPreviewUrl] = useState("");
 
-  const email = location.state?.email || localStorage.getItem("onboarding_email") || "";
-
-  useEffect(() => {
-    if (!token && !isAuthenticated) {
-      console.error("Not authenticated. Redirecting to login...");
-      navigate("/login");
-    }
-  }, [token, isAuthenticated, navigate]);
-
-  if (!email && !user?.email) {
-    console.error("Email not provided for profile completion");
-    return <div>Error: Email is required to complete profile. Please go back to login.</div>;
+  // Enhanced error handling for missing email
+  if (!email) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-md mx-auto">
+          <div className="card bg-base-100 shadow-xl border border-base-300">
+            <div className="card-body text-center">
+              <h2 className="card-title justify-center text-xl text-error">
+                Missing Information
+              </h2>
+              <p className="text-base-content/70">
+                We couldn't find your email information. Please log in again to complete your profile.
+              </p>
+              <div className="card-actions justify-center mt-4">
+                <button 
+                  onClick={() => navigate('/login')}
+                  className="btn btn-primary"
+                >
+                  Go to Login
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const isGoogleUser = user?.login_method === "GOOGLE";
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    setSuggestions([]);
-
-    try {
-      const payload = { username };
-
-      if (isGoogleUser && wantToChangePassword && newPassword) {
-        payload.newPassword = newPassword;
-      }
-
-      await api.post("/users/complete-profile", payload);
-
-      if (file) {
-        const formData = new FormData();
-        formData.append("profilePicture", file);
-        await api.post("/users/profile/upload", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-      }
-
-      const currentToken = localStorage.getItem("token");
-      if (currentToken) {
-        await login(currentToken);
-      }
-
-      localStorage.removeItem("onboarding_step");
-      localStorage.removeItem("onboarding_email");
-
-      showNotification({
-        title: "Profile Completed",
-        message: "Welcome! Your profile is set.",
-        color: "green",
-      });
-      navigate("/dashboard");
-    } catch (err) {
-      const msg = err.response?.data?.message || "Failed to complete profile";
-      setError(msg);
-      if (err.response?.data?.suggestions) {
-        setSuggestions(err.response.data.suggestions);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <Container size="sm" py="md">
-      <OnboardingProgress currentStep="PROFILE_UPDATED" />
-      <Title order={3} mb="md">
-        Complete Your Profile
-      </Title>
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-md mx-auto">
+        <OnboardingProgress currentStep="PROFILE_UPDATED" />
 
-      <form onSubmit={handleSubmit}>
-        <TextInput
-          label="Choose a username"
-          placeholder="e.g. johndoe"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-          withAsterisk
-        />
+        <div className="card bg-base-100 shadow-xl border border-base-300 mt-4">
+          <div className="card-body">
+            <h2 className="card-title justify-center text-2xl mb-4">
+              Complete Your Profile
+            </h2>
 
-        {isGoogleUser && (
-          <>
-            <Checkbox
-              mt="md"
-              label="I want to set a custom password"
-              checked={wantToChangePassword}
-              onChange={(event) =>
-                setWantToChangePassword(event.currentTarget.checked)
-              }
-            />
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Username Input */}
+              <label className="form-control w-full">
+                <div className="label">
+                  <span className="label-text font-semibold">Choose a username*</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="e.g. johndoe"
+                  className="input input-bordered w-full"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                />
+              </label>
 
-            {wantToChangePassword && (
-              <PasswordInput
-                label="New Password"
-                placeholder="Enter a secure password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                mt="md"
-                required={wantToChangePassword}
-              />
-            )}
+              {/* Password options for Google Users */}
+              {isGoogleUser && (
+                <div>
+                  <div className="form-control">
+                    <label className="label cursor-pointer justify-start gap-2">
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox-primary"
+                        checked={wantToChangePassword}
+                        onChange={(e) => setWantToChangePassword(e.currentTarget.checked)}
+                      />
+                      <span className="label-text">Set a custom password</span>
+                    </label>
+                  </div>
+                  {wantToChangePassword && (
+                    <label className="form-control w-full mt-2">
+                      <div className="label">
+                        <span className="label-text font-semibold">New Password*</span>
+                      </div>
+                      <input
+                        type="password"
+                        placeholder="Enter a secure password"
+                        className="input input-bordered w-full"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required={wantToChangePassword}
+                      />
+                    </label>
+                  )}
+                   <p className="text-xs text-base-content/60 mt-2 px-1">
+                    {!wantToChangePassword
+                      ? "You can continue with Google sign-in only, or set a custom password above."
+                      : "You'll be able to login with either Google or this password."}
+                  </p>
+                </div>
+              )}
 
-            <Text size="sm" color="dimmed" mt="xs">
-              {!wantToChangePassword
-                ? "You can continue with Google sign-in only, or set a custom password above."
-                : "You'll be able to login with either Google or this password."}
-            </Text>
-          </>
-        )}
+              {/* File Input */}
+              <label className="form-control w-full">
+                <div className="label">
+                  <span className="label-text font-semibold">Profile Picture (optional)</span>
+                </div>
+                <input
+                  type="file"
+                  className="file-input file-input-bordered w-full"
+                  accept="image/png,image/jpeg"
+                  onChange={handleFileChange}
+                />
+              </label>
 
-        <FileInput
-          label="Profile Picture (optional)"
-          placeholder="Upload .jpg or .png"
-          accept="image/png,image/jpeg"
-          mt="md"
-          value={file}
-          onChange={setFile}
-        />
+              {/* Image Preview */}
+              {previewUrl && (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm">Preview:</span>
+                  <div className="avatar">
+                    <div className="w-16 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+                      <img src={previewUrl} alt="Profile preview" />
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Error Message Display */}
+              {error && (
+                <div role="alert" className="alert alert-error text-sm">
+                  <span>{error}</span>
+                </div>
+              )}
 
-        {file && (
-          <Group mt="sm">
-            <Text size="sm">Preview:</Text>
-            <Avatar src={URL.createObjectURL(file)} radius="xl" size="lg" />
-          </Group>
-        )}
-
-        <Button type="submit" loading={loading} fullWidth mt="lg">
-          Complete Profile
-        </Button>
-      </form>
-
-      {error && (
-        <Notification color="red" mt="md">
-          {error}
-        </Notification>
-      )}
-
-      {suggestions.length > 0 && (
-        <Group mt="md" wrap="wrap">
-          <Text size="sm">Suggestions:</Text>
-          {suggestions.map((s) => (
-            <Button
-              key={s}
-              size="xs"
-              variant="outline"
-              color="blue"
-              onClick={() => setUsername(s)}
-            >
-              {s}
-            </Button>
-          ))}
-        </Group>
-      )}
-    </Container>
+              {/* Username Suggestions */}
+              {suggestions.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm">Suggestions:</span>
+                  {suggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className="btn btn-xs btn-outline"
+                      onClick={() => setUsername(s)}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+              
+              {/* Submit Button */}
+              <button type="submit" className="btn btn-primary w-full" disabled={loading}>
+                {loading && <span className="loading loading-spinner"></span>}
+                Complete Profile
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
