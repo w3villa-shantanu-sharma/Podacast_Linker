@@ -41,8 +41,9 @@ api.interceptors.response.use(
 
       try {
         await new Promise((resolve) => setTimeout(resolve, 500));
-        const refreshResponse = await axios.post(
-          "/api/users/refresh-token",
+        // FIX: Use the 'api' instance here, not the global 'axios'
+        const refreshResponse = await api.post(
+          "/users/refresh-token",
           {},
           {
             withCredentials: true,
