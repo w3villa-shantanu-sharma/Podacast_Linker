@@ -40,19 +40,29 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
+        console.log("Attempting to refresh token...");
         await new Promise((resolve) => setTimeout(resolve, 500));
-        // FIX: Use the 'api' instance here, not the global 'axios'
+        
+        // First, try to get token from cookie if present
         const refreshResponse = await api.post(
           "/users/refresh-token",
           {},
-          {
-            withCredentials: true,
-          }
+          { withCredentials: true }
         );
-
+        
+        // If we get a new token in the response, use it
+        if (refreshResponse.data?.token) {
+          console.log("Got new token from refresh endpoint");
+          localStorage.setItem("token", refreshResponse.data.token);
+          api.defaults.headers.common["Authorization"] = `Bearer ${refreshResponse.data.token}`;
+        }
+        
+        // Retry the original request
         return api(originalRequest);
       } catch (refreshError) {
         console.error("Token refresh failed:", refreshError);
+        // Clear token from localStorage since it's invalid
+        localStorage.removeItem("token");
         if (!isRedirecting && window.location.pathname !== "/login") {
           isRedirecting = true;
           window.location.href = "/login";

@@ -48,7 +48,6 @@ export const AuthProvider = ({ children }) => {
             setUser(response.data);
             setIsAuthenticated(true);
             setIsAdmin(response.data.role === 'admin');
-            console.log("User authenticated, admin status:", response.data.role === 'admin');
           }
         } catch (err) {
           // Neither localStorage nor cookie auth worked
