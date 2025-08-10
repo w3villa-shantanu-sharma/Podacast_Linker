@@ -4,12 +4,12 @@ const getStoredToken = () => localStorage.getItem("token");
 
 // Make sure your API client uses the correct production URL
 const API_URL = import.meta.env.VITE_API_URL;
-console.log('API URL:', API_URL); // Debug log to verify URL
+console.log('API URL:', API_URL);
 
 // Create an Axios instance with environment-aware URL
 const api = axios.create({
   baseURL: API_URL,
-  withCredentials: true, // Important for cookies/auth
+  withCredentials: true,
 });
 
 // Track if we're already redirecting to prevent loops
@@ -27,11 +27,10 @@ api.interceptors.response.use(
       !originalRequest._retry
     ) {
       console.warn("Admin route authorization failed:", originalRequest.url);
-      // For admin routes, don't redirect automatically
       return Promise.reject(error);
     }
 
-    // Handle token refresh for 401s - FIXED
+    // Handle token refresh for 401s
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
@@ -44,19 +43,17 @@ api.interceptors.response.use(
       try {
         console.log("Attempting to refresh token...");
         
-        // Try refresh with current token
         const currentToken = getStoredToken();
         if (currentToken) {
-          const refreshResponse = await axios.post(
-            `${API_URL}/users/refresh-token`,
+          // Use the configured api instance for the refresh request
+          const refreshResponse = await api.post(
+            "/users/refresh-token",
             {},
             { 
               headers: { Authorization: `Bearer ${currentToken}` },
-              withCredentials: true 
             }
           );
           
-          // If we get a new token in the response, use it
           if (refreshResponse.data?.token) {
             console.log("Got new token from refresh endpoint");
             localStorage.setItem("token", refreshResponse.data.token);
@@ -69,7 +66,6 @@ api.interceptors.response.use(
         }
       } catch (refreshError) {
         console.error("Token refresh failed:", refreshError);
-        // Clear token from localStorage since it's invalid
         localStorage.removeItem("token");
         delete api.defaults.headers.common["Authorization"];
         
@@ -81,9 +77,8 @@ api.interceptors.response.use(
       }
     }
 
-    // Handle general 401 errors with more care to prevent loops
+    // Handle general 401 errors
     if (error.response?.status === 401 && !isRedirecting) {
-      // Only redirect if we're not already on login page and not an admin route
       if (
         window.location.pathname !== "/login" &&
         !window.location.pathname.startsWith("/register") &&
