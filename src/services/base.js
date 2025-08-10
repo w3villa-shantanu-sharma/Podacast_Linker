@@ -30,7 +30,7 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Handle token refresh for 401s
+    // Handle token refresh for 401s - IMPROVED
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
@@ -45,12 +45,13 @@ api.interceptors.response.use(
         
         const currentToken = getStoredToken();
         if (currentToken) {
-          // Use the configured api instance for the refresh request
-          const refreshResponse = await api.post(
-            "/users/refresh-token",
+          // Use axios directly to avoid interceptor loops
+          const refreshResponse = await axios.post(
+            `${API_URL}/users/refresh-token`,
             {},
             { 
               headers: { Authorization: `Bearer ${currentToken}` },
+              withCredentials: true
             }
           );
           
@@ -77,15 +78,18 @@ api.interceptors.response.use(
       }
     }
 
-    // Handle general 401 errors
+    // Handle general 401 errors with better condition checking
     if (error.response?.status === 401 && !isRedirecting) {
-      if (
-        window.location.pathname !== "/login" &&
-        !window.location.pathname.startsWith("/register") &&
-        !window.location.pathname.startsWith("/verify-") &&
-        !window.location.pathname.startsWith("/admin") &&
-        !window.location.pathname.startsWith("/oauth-success")
-      ) {
+      const currentPath = window.location.pathname;
+      const shouldRedirect = ![
+        "/login",
+        "/register",
+        "/oauth-success"
+      ].some(path => currentPath.startsWith(path)) && 
+      !currentPath.startsWith("/verify-") && 
+      !currentPath.startsWith("/admin");
+
+      if (shouldRedirect) {
         isRedirecting = true;
         setTimeout(() => {
           window.location.href = "/login";
@@ -100,6 +104,11 @@ api.interceptors.response.use(
 // Reset redirect flag when navigating to login
 if (typeof window !== "undefined") {
   window.addEventListener("beforeunload", () => {
+    isRedirecting = false;
+  });
+  
+  // Also reset on popstate (browser back/forward)
+  window.addEventListener("popstate", () => {
     isRedirecting = false;
   });
 }
