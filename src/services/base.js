@@ -31,38 +31,48 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Handle token refresh for 401s
+    // Handle token refresh for 401s - FIXED
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
-      !originalRequest.url.includes("refresh-token")
+      !originalRequest.url.includes("refresh-token") &&
+      !originalRequest.url.includes("login") &&
+      !originalRequest.url.includes("register")
     ) {
       originalRequest._retry = true;
 
       try {
         console.log("Attempting to refresh token...");
-        await new Promise((resolve) => setTimeout(resolve, 500));
         
-        // First, try to get token from cookie if present
-        const refreshResponse = await api.post(
-          "/users/refresh-token",
-          {},
-          { withCredentials: true }
-        );
-        
-        // If we get a new token in the response, use it
-        if (refreshResponse.data?.token) {
-          console.log("Got new token from refresh endpoint");
-          localStorage.setItem("token", refreshResponse.data.token);
-          api.defaults.headers.common["Authorization"] = `Bearer ${refreshResponse.data.token}`;
+        // Try refresh with current token
+        const currentToken = getStoredToken();
+        if (currentToken) {
+          const refreshResponse = await axios.post(
+            `${API_URL}/users/refresh-token`,
+            {},
+            { 
+              headers: { Authorization: `Bearer ${currentToken}` },
+              withCredentials: true 
+            }
+          );
+          
+          // If we get a new token in the response, use it
+          if (refreshResponse.data?.token) {
+            console.log("Got new token from refresh endpoint");
+            localStorage.setItem("token", refreshResponse.data.token);
+            api.defaults.headers.common["Authorization"] = `Bearer ${refreshResponse.data.token}`;
+            
+            // Retry the original request with new token
+            originalRequest.headers["Authorization"] = `Bearer ${refreshResponse.data.token}`;
+            return api(originalRequest);
+          }
         }
-        
-        // Retry the original request
-        return api(originalRequest);
       } catch (refreshError) {
         console.error("Token refresh failed:", refreshError);
         // Clear token from localStorage since it's invalid
         localStorage.removeItem("token");
+        delete api.defaults.headers.common["Authorization"];
+        
         if (!isRedirecting && window.location.pathname !== "/login") {
           isRedirecting = true;
           window.location.href = "/login";
@@ -78,7 +88,8 @@ api.interceptors.response.use(
         window.location.pathname !== "/login" &&
         !window.location.pathname.startsWith("/register") &&
         !window.location.pathname.startsWith("/verify-") &&
-        !window.location.pathname.startsWith("/admin") // Add this check
+        !window.location.pathname.startsWith("/admin") &&
+        !window.location.pathname.startsWith("/oauth-success")
       ) {
         isRedirecting = true;
         setTimeout(() => {
@@ -111,22 +122,5 @@ api.interceptors.request.use(
     return Promise.reject(error);
   }
 );
-
-// Optional: Add response interceptor for handling common errors
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      // Handle auth errors (optional)
-      console.log("Unauthorized request - you may need to log in again");
-    }
-    return Promise.reject(error);
-  }
-);
-
-// In your OAuth login functions, use the environment variable
-const handleGoogleLogin = () => {
-  window.location.href = `${import.meta.env.VITE_API_URL}/users/auth/google`;
-};
 
 export default api;

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { routeOnboardingStep } from '../../utils/RouteOnboardingStep';
+import api from '../services/base';
 
 const OAuthSuccess = () => {
   const navigate = useNavigate();
@@ -14,11 +15,27 @@ const OAuthSuccess = () => {
         const params = new URLSearchParams(window.location.search);
         const nextAction = params.get('next_action');
         const email = params.get('email');
+        const token = params.get('token'); // Get token from URL
 
         setStatus("Finalizing your login...");
+
+        // If we have a token from the URL, store it and set up auth
+        if (token) {
+          console.log("Setting up authentication with token from OAuth");
+          localStorage.setItem("token", token);
           
-        // No need to store token in localStorage - it's in cookies
-        // Just call login to update auth context state
+          // Set the token in axios headers
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          
+          // Also try to set it as a cookie via API call
+          try {
+            await api.post('/users/set-auth-cookie', { token });
+          } catch (cookieError) {
+            console.warn("Failed to set auth cookie:", cookieError);
+          }
+        }
+
+        // Update auth context state
         await login();
 
         // Handle next action for incomplete profiles
@@ -28,6 +45,7 @@ const OAuthSuccess = () => {
           // Profile is complete, go to dashboard
           navigate('/dashboard', { replace: true });
         }
+        
       } catch (error) {
         console.error('OAuth success error:', error);
         setStatus("An error occurred. Redirecting...");
