@@ -113,12 +113,15 @@ if (typeof window !== "undefined") {
   });
 }
 
-// Add request interceptor to include auth token from localStorage
+// Critical fix: Always set the token before each request
 api.interceptors.request.use(
   (config) => {
     const token = getStoredToken();
     if (token) {
       config.headers["Authorization"] = `Bearer ${token}`;
+      console.log("Setting Authorization header with token");
+    } else {
+      console.warn("No token available for request");
     }
     return config;
   },

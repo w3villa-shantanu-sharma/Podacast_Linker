@@ -58,6 +58,83 @@ export default function CompleteProfile() {
 
   const isGoogleUser = user?.login_method === "GOOGLE";
 
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      // Basic validation for image file types
+      if (!selectedFile.type.startsWith("image/")) {
+        setError("Please select a valid image file (PNG or JPEG).");
+        return;
+      }
+      setFile(selectedFile);
+      
+      // Create a preview URL for the selected image
+      const objectUrl = URL.createObjectURL(selectedFile);
+      setPreviewUrl(objectUrl);
+
+      // Cleanup the object URL after component unmounts or file changes
+      return () => URL.revokeObjectURL(objectUrl);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!username.trim()) {
+      setError("Username is required");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setSuggestions([]);
+
+    try {
+      // Ensure the token is in localStorage
+      const token = localStorage.getItem("token");
+      if (!token) {
+        // Debug log - this is critical
+        console.error("No token found - redirecting to login");
+        navigate("/login", { 
+          state: { error: "Your session has expired. Please login again." }
+        });
+        return;
+      }
+      
+      // Make sure the API client has the token
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      // Create the payload
+      const payload = { username };
+      if (isGoogleUser && wantToChangePassword && newPassword) {
+        payload.newPassword = newPassword;
+      }
+
+      console.log("Sending complete profile request:", payload);
+      
+      const res = await api.post("/users/complete-profile", payload);
+      console.log("Complete profile response:", res.data);
+      
+      // If we got a new token in the response, use it
+      if (res.data.token) {
+        localStorage.setItem("token", res.data.token);
+        await login(res.data.token);
+      }
+
+      toast.success("Profile completed successfully!");
+      navigate("/dashboard", { replace: true });
+    } catch (err) {
+      console.error("Complete profile error:", err);
+      if (err.response?.status === 409 && err.response?.data?.suggestions) {
+        setSuggestions(err.response.data.suggestions);
+        setError(err.response.data.message);
+      } else {
+        setError(err.response?.data?.message || "Failed to complete profile");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-md mx-auto">
