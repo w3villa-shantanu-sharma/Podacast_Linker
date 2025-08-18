@@ -1,23 +1,11 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind base styles */
+@import "tailwindcss/base";
+/* Tailwind component styles */
+@import "tailwindcss/components";
+/* Tailwind utility styles */
+@import "tailwindcss/utilities";
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
 
-::-webkit-scrollbar-track {
-  @apply bg-base-200;
-}
-/* 
-::-webkit-scrollbar-thumb {
-  @apply bg-base-content/20 rounded-full;
-} */
-
-/* ::-webkit-scrollbar-thumb:hover {
-  @apply bg-base-content/30;
-} */
 
 /* Enhanced navbar styles */
 .navbar {
@@ -53,6 +41,7 @@
 
 .btn:hover {
   transform: translateY(-1px);
+  box-shadow: 0 8px 25px -8px rgba(59, 130, 246, 0.5); /* Replace with the actual primary color */
 }
 
 .btn-primary:hover {
@@ -120,7 +109,7 @@
   content: '';
   position: absolute;
   top: 0;
-  right: 0;
+  background: rgba(239, 68, 68, 1); /* Replace with the actual error color */
   width: 8px;
   height: 8px;
   background: theme(colors.error);
@@ -134,7 +123,6 @@
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* Line clamp utilities */
 .line-clamp-1 {
   display: -webkit-box;
   -webkit-line-clamp: 1;
@@ -171,6 +159,13 @@
 /* Loading spinner enhancement */
 .loading-spinner {
   border-top-color: hsl(var(--p));
+}
+
+/* Focus outline style */
+.focus-outline {
+  outline: 2px solid rgba(59, 130, 246, 1); /* Replace with the actual primary color */
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px #f3f4f6; /* Replace with the actual base-100 color */
 }
 
 /* Enhanced focus states */
@@ -220,4 +215,78 @@
     left: auto;
     min-width: 250px;
   }
+}
+
+.theme-transition,
+.theme-transition *,
+.theme-transition *:before,
+.theme-transition *:after {
+  transition: background-color 0.5s cubic-bezier(0.3, 0, 0.2, 1), 
+              border-color 0.5s cubic-bezier(0.3, 0, 0.2, 1), 
+              color 0.5s cubic-bezier(0.3, 0, 0.2, 1),
+              fill 0.5s cubic-bezier(0.3, 0, 0.2, 1), 
+              stroke 0.5s cubic-bezier(0.3, 0, 0.2, 1),
+              box-shadow 0.5s cubic-bezier(0.3, 0, 0.2, 1),
+              opacity 0.5s cubic-bezier(0.3, 0, 0.2, 1),
+              transform 0.5s cubic-bezier(0.3, 0, 0.2, 1) !important;
+}
+
+/* Enhanced visual refinements for dark mode */
+[data-theme="dark"] .card {
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .btn-primary {
+  /* box-shadow: 0 0 15px rgba(var(--p), 0.25); */  /* Comment out this duplicate rule */
+}
+
+/* Light theme refinements */
+[data-theme="light"] {
+  --card-border-color: rgba(0, 0, 0, 0.05);
+  --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+/* Dark theme refinements */
+[data-theme="dark"] {
+  --card-border-color: rgba(255, 255, 255, 0.05);
+  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  
+  /* Subtle text adjustments for readability */
+  --text-base-size: 1.05rem;
+  letter-spacing: 0.01em;
+}
+
+/* Cupcake theme refinements */
+[data-theme="cupcake"] {
+  --card-border-color: rgba(124, 58, 237, 0.1);
+  --card-shadow: 0 4px 15px rgba(124, 58, 237, 0.15);
+}
+
+/* Enhanced cards for all themes */
+.card {
+  border: 1px solid var(--card-border-color);
+  box-shadow: var(--card-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Button glow effects based on theme */
+[data-theme="dark"] .btn-primary {
+  box-shadow: 0 0 15px rgba(var(--p), 0.25);
+}
+
+[data-theme="dark"] .btn-primary:hover {
+  box-shadow: 0 0 20px rgba(var(--p), 0.4);
+}
+
+/* Image enhancements for dark mode */
+[data-theme="dark"] img {
+  filter: brightness(0.95);
+}
+
+/* Dark mode code blocks */
+[data-theme="dark"] pre,
+[data-theme="dark"] code {
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }

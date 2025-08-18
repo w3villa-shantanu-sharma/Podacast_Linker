@@ -1,6 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import NotificationBell from "./NotificationBell";
+import ThemeToggle from "./ThemeToggle"; // Import the ThemeToggle
+import ThemeSettingsModal from "./ThemeSettingsModal"; // Add this import at the top
 
 export default function Navbar() {
   const { user, isAuthenticated, isAdmin, logout } = useAuth(); // Add isAdmin here
@@ -108,8 +110,7 @@ export default function Navbar() {
 
   return (
     <div className="navbar bg-base-100/90 backdrop-blur-lg shadow-md sticky top-0 z-50 border-b border-base-300">
-     <div className="w-full max-w-screen-xl mx-auto px-4 flex justify-between items-center">
-
+      <div className="w-full max-w-screen-xl mx-auto px-4 flex justify-between items-center">
         {/* Start */}
         <div className="navbar-start">
           {/* Mobile Menu */}
@@ -140,7 +141,6 @@ export default function Navbar() {
 
           {/* Logo */}
           <Link to="/" className="btn btn-ghost normal-case text-xl font-bold flex items-center gap-2">
-
             <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
               🎙️ PodcastHub
             </span>
@@ -154,6 +154,10 @@ export default function Navbar() {
 
         {/* End */}
         <div className="navbar-end flex items-center space-x-3">
+          {/* Add Theme Toggle */}
+          <ThemeToggle />
+          <ThemeSettingsModal /> {/* Add this line */}
+
           {isAuthenticated && user ? (
             <>
               <NotificationBell />

@@ -1,5 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
+import { useTheme } from "./hooks/useTheme";
+import { useEffect } from "react";
 import Navbar from "./components/Navbar";
 
 // Page Imports
@@ -29,6 +31,18 @@ import PrivateRoute from "./routes/PrivateRoute";
 import AdminRoute from "./routes/AdminRoute";
 
 const App = () => {
+  const { theme } = useTheme();
+  
+  useEffect(() => {
+    // Change favicon based on theme
+    const link = document.querySelector("link[rel~='icon']");
+    if (link) {
+      link.href = theme === "dark" 
+        ? "/favicon-dark.ico" 
+        : "/favicon-light.ico";
+    }
+  }, [theme]);
+
   return (
     <>
       <Navbar />
